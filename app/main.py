@@ -6,8 +6,10 @@ from moviepy.video.io.VideoFileClip import VideoFileClip
 from os import remove, path
 
 app = FastAPI()
+OLLAMA_BASE_URL = "http://localhost:11434/api"
+OLLAMA_GEN_URL = f"{OLLAMA_BASE_URL}/generate"
+OLLAMA_CHAT_URL = f"{OLLAMA_BASE_URL}/chat"
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
 MODEL_NAME = "llama3.2:latest"
 
 
@@ -17,7 +19,7 @@ async def get_summary(text: str) -> str:
         "prompt": f"provide the summary of text -  {text}",
         "stream": False
     }
-    response = requests.post(OLLAMA_URL, json=payload)
+    response = requests.post(OLLAMA_GEN_URL, json=payload)
     response.raise_for_status()
     if response.status_code != 200:
         return "Error generating summary."
@@ -62,3 +64,18 @@ async def summarize_video(video_path: str):
     summary = await get_summary(transcription)
     return {"summary": summary}
 
+@app.post("/ask_question")
+async def ask_question(question: str) -> str:
+    messages = [{
+        "role": "user",
+        "content": question
+    }]
+    payload = {
+        "model": MODEL_NAME,
+        "messages": messages,
+        "stream": False
+    }
+    response = requests.post(OLLAMA_CHAT_URL, json=payload, stream=False)
+    response.raise_for_status()
+
+    return response.json().get("message").get("content", "").strip()
